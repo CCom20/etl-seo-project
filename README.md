@@ -17,7 +17,7 @@ For this project, I am extracting data from a university website, cleaning it wi
 
 SEO is not keyword-stuffing. That is, simply having a word (x) number of times on a page does not mean we can expect to rank for that page. However, the words used on pages does inform whether we are targeting the correct keywords, if we're including important words, and word-frequency can be an essential piece of understanding what a document is about. It will be important to build upon this with machine learning and NLP. 
 
-## Exctraction
+## Exctraction and Partial Transformation
 
 Data pulled covers 56 academic programs offered through Colorado Christian University's College of Undergraduate Studies. This meant setting up a web scraper and visiting the main URL that contains the links to each program:
 
@@ -57,7 +57,7 @@ As noted, the empty list is for the first part of cleaning the data. Right now, 
             tokens = [t for t in clean_paras.split()]
             clean_tokens = tokens[:]
 
-
+Now that we have tokens, we can go through our words and remove any English stop-words, find the frequency of each word, loop through the frequency of words and append the word and its count to our own dictionary. We only want to do this for each page.
 
         # Remove all English stop-words
             for token in tokens:
@@ -74,3 +74,60 @@ As noted, the empty list is for the first part of cleaning the data. Right now, 
                 words_dict["word"] = key
                 words_dict["count"] = val
                 freq_words.append(words_dict)
+
+The next thing we need to do is simply update an empty dictionary with all of our values, append to the master list `page_dict`, insert the document into MongoDB, then move on to the next url in the que.
+
+        page_dict = {}
+        page_dict['page_url'] = page_url
+        page_dict['page_title'] = page_title
+        page_dict['page_h1'] = page_h1
+        page_dict['page_paras'] = p.text
+        page_dict['page_words_freq'] = freq_words
+        
+        # Append Dictionary to the master 'webpage_info' list
+        webpage_info.append(page_dict)
+        
+        # Add Dictionary to MongoDB
+        db.webDB.insert_one(page_dict)
+
+## Additional Transformation
+
+While we can read everything in a Pandas dataframe, the frequency of words is a dictionary within a list within another dictionary. Meaning it's hindering to drill-down and get the words and their count to do further analysis with. 
+
+The simplest solution seemed to be to loop through the original dataframe after we've scraped and cleaned the data from the webpage. We could grab the key-value pairs and create a dictionary that would have the page's url, the words for the url, and their count. Then we could have a clean dataframe without dictionaries. It also provides a commoin point for joining (e.g., joining dataframes or databases on the page url). 
+
+        # Loop through the original dataframe
+        for index, row in web_info_df.iterrows():
+    
+            # loop through the 'page_words_freq' column
+            for n in row['page_words_freq']:
+        
+            # Set up an empty dictionary 
+            page_info_dict = {}
+            
+            # Get the word and count, add page URL from first for-loop 
+            word = n['word']
+            count = n['count']
+            url = row['page_url']
+            
+            # Create key-value pairs and append to dictionary
+            page_info_dict['word'] = word
+            page_info_dict['count'] = count
+            page_info_dict['page_url'] = url
+            pages_words.append(page_info_dict)
+
+# Loading
+
+Now we can read the list `page_words` into a dataframe and work with word counts much more easily. And now our dataframes are easily exported as SQL tables, and we can later update / append to those tables as necessary.
+
+        engine = create_engine(f'postgresql://postgres:{password}@localhost:5432/web_db')
+        connection = engine.connect()
+
+        # Add master_df as table 'main_web' in database
+        master_df.to_sql('main_web', index=False, con=connection)
+
+        # Add 'page_df' as 'page_info' table in database
+        page_df.to_sql('page_info', index=False, if_exists:'replace', con=connection)
+
+        # Add 'words_grouped_df' as 'words_grouped' table in database
+        words_grouped_df.to_sql('words_grouped', index=True, if_exists:'replace', con=connection)
