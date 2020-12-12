@@ -1,21 +1,17 @@
-# ETL: SEO and Web Analytics 
+# ETL: Univeristy Programs and Bureau of Labor Statistics (BLS) Data
 
-For this project, I am extracting data from a university website, cleaning it with python text cleaning libraries and the `nltk` (Natural Language Took Kit) library, creating new dictionaries and dataframes with Pandas, then loading the data into MongoDB and PostgreSQL.
+For this project, I am extracting data from a university website and the BLS, cleaning it with python text cleaning libraries and the `nltk` (Natural Language Took Kit) library, creating new dictionaries and dataframes with Pandas, then loading the data into MongoDB and PostgreSQL.
 
 **Project Goal**
 
-- To scrape, parse, read, and identify words most commonly used on indivdual program pages. Data pulled and cleaned helps identify if individual documents (i.e., unique program pages) are using words that relate to the page title and h1. This can be built upon later with machine learning and further language processing to test for optimization against ranking pages in Google and other search engines.
+- To scrape, parse, read, and identify words most commonly used on indivdual program pages; and to identify relevant data from BLS and merge that data with data scraped from the university website. 
 
 **Questions**
 
-1. What are the most frequent words on each document (i.e., program page)?
+1. What are the most frequent words in each document (i.e., program page)?
 2. Do the targeted keywords (assumption: Page titles are targeted keywords) show up in the page copy?
-3. Which words are the most frequent across all documents?
-4. How many documents contain the most frequent words?
-
-**Notes**
-
-SEO is not keyword-stuffing. That is, simply having a word (x) number of times on a page does not mean we can expect to rank for that page. However, the words used on pages does inform whether we are targeting the correct keywords, if we're including important words, and word-frequency can be an essential piece of understanding what a document is about. It will be important to build upon this with machine learning and NLP. 
+3. What degree fields for each program pay the most / pay the least?
+4. What is the estimated employment for each degree field?
 
 ## Exctraction and Partial Transformation
 
@@ -58,6 +54,8 @@ As noted, the empty list is for the first part of cleaning the data. Right now, 
             clean_tokens = tokens[:]
 
 Now that we have tokens, we can go through our words and remove any English stop-words, find the frequency of each word, loop through the frequency of words and append the word and its count to our own dictionary. We only want to do this for each page.
+
+**Note**: I found an article on `nltk` and how to get started, using it and modifying it for the needs of this project. (Source: https://towardsdatascience.com/gentle-start-to-natural-language-processing-using-python-6e46c07addf3)
 
         # Remove all English stop-words
             for token in tokens:
@@ -116,7 +114,7 @@ The simplest solution seemed to be to loop through the original dataframe after 
             page_info_dict['page_url'] = url
             pages_words.append(page_info_dict)
 
-# Loading
+## Loading
 
 Now we can read the list `page_words` into a dataframe and work with word counts much more easily. And now our dataframes are easily exported as SQL tables, and we can later update / append to those tables as necessary.
 
@@ -131,3 +129,7 @@ Now we can read the list `page_words` into a dataframe and work with word counts
 
         # Add 'words_grouped_df' as 'words_grouped' table in database
         words_grouped_df.to_sql('words_grouped', index=True, if_exists:'replace', con=connection)
+
+## Additional Detials on BLS Data
+
+The BLS data follows much of the same process without doing any natural language processing. I will note that I created and arbitrary `field_id` for each degree field. This was done so I could create a csv and assign field ids to programs pulled from the university website. I then read that csv back into Pandas to merge the data. After cleaning up the data, it is loaded into PostgreSQL. 
